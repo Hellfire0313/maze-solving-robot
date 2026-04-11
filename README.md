@@ -73,8 +73,25 @@ During forward movement, the robot dynamically adjusts motor speeds based on lat
 
 ```
 maze-solving-robot/
-├── maze_solver.ino     # Main Arduino sketch (all logic)
-└── README.md
+│
+├── README.md                          
+│
+├── src/
+│   └── maze_solver.ino                
+│
+├── hardware/
+│   ├── schematic_top_layer.png        
+│   ├── schematic_bottom_layer.png    
+│   └── patent_application.pdf         
+│
+├── media/
+    ├── robot_top_assembled.png       
+    ├── robot_front_tof_sensor.png    
+    ├── robot_back_wiring.png          
+    ├── robot_bottom_pcb.png          
+    ├── robot_top_pcb_components.png  
+    └── competition_maze_arena.png     
+                         
 ```
 
 ---
