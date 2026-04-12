@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NAVIX-4 — Autonomous Maze-Solving Robot</title>
+  <meta name="description" content="A patented autonomous maze-solving robot that explores, learns, and optimizes paths in real time. Built for Robofest 4.0, National Level Competition."/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0b;
+      --surface: #111113;
+      --surface-2: #1a1a1d;
+      --border: #2a2a2d;
+      --text: #e8e8ed;
+      --text-dim: #8b8b96;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.15);
+      --green: #22c55e;
+      --orange: #f59e0b;
+      --red: #ef4444;
+      --purple: #a855f7;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+    /* Navigation */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(10, 10, 11, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    nav .container {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    nav .logo {
+      font-weight: 800; font-size: 1.1rem; letter-spacing: -0.02em;
+      color: var(--text);
+      text-decoration: none;
+    }
+    nav .logo span { color: var(--accent); }
+    nav .links { display: flex; gap: 32px; }
+    nav .links a {
+      color: var(--text-dim); text-decoration: none; font-size: 0.875rem;
+      font-weight: 500; transition: color 0.2s;
+    }
+    nav .links a:hover { color: var(--text); }
+
+    /* Hero */
+    .hero {
+      padding: 160px 0 100px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 60px; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 100px; padding: 6px 16px 6px 8px;
+      font-size: 0.8rem; color: var(--text-dim); margin-bottom: 32px;
+    }
+    .hero .badge .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 900; letter-spacing: -0.03em;
+      line-height: 1.1; margin-bottom: 24px;
+    }
+    .hero h1 .gradient {
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 1.15rem; color: var(--text-dim);
+      max-width: 640px; margin: 0 auto 40px; line-height: 1.7;
+    }
+    .hero .ctas {
+      display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px; border-radius: 10px;
+      font-size: 0.9rem; font-weight: 600; text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: var(--accent); color: #fff;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+    .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
+    .btn-secondary {
+      background: var(--surface-2); color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--text-dim); }
+
+    /* Stats */
+    .stats {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 1px; background: var(--border); border-radius: 16px;
+      overflow: hidden; margin-bottom: 100px;
+    }
+    .stat {
+      background: var(--surface); padding: 32px; text-align: center;
+    }
+    .stat .number {
+      font-size: 2rem; font-weight: 800; letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+    .stat .label { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; }
+
+    /* Section */
+    section { padding: 80px 0; }
+    .section-label {
+      font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em;
+      color: var(--accent); font-weight: 600; margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(1.75rem, 3vw, 2.5rem);
+      font-weight: 800; letter-spacing: -0.02em; margin-bottom: 16px;
+    }
+    .section-desc {
+      color: var(--text-dim); font-size: 1.05rem; max-width: 600px;
+      margin-bottom: 48px; line-height: 1.7;
+    }
+
+    /* Phases */
+    .phases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .phase {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 32px;
+      transition: border-color 0.3s;
+    }
+    .phase:hover { border-color: var(--accent); }
+    .phase .num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--accent-glow); color: var(--accent);
+      font-weight: 700; font-size: 0.9rem; margin-bottom: 20px;
+    }
+    .phase h3 { font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; }
+    .phase p { color: var(--text-dim); font-size: 0.9rem; line-height: 1.6; }
+
+    /* Optimization visual */
+    .optim-visual {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 40px;
+      margin-top: 48px;
+    }
+    .optim-visual h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 24px; }
+    .optim-step {
+      display: flex; align-items: center; gap: 20px;
+      padding: 12px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.95rem;
+    }
+    .optim-step .before { color: var(--text-dim); min-width: 200px; }
+    .optim-step .arrow { color: var(--accent); font-size: 1.2rem; }
+    .optim-step .after { color: var(--green); font-weight: 500; }
+    .optim-step .rule {
+      color: var(--text-dim); font-size: 0.75rem; font-family: 'Inter', sans-serif;
+      margin-left: auto;
+    }
+
+    /* Hardware grid */
+    .hw-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;
+    }
+    .hw-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px;
+      display: flex; align-items: flex-start; gap: 16px;
+    }
+    .hw-card .icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; flex-shrink: 0;
+    }
+    .hw-card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+    .hw-card p { color: var(--text-dim); font-size: 0.82rem; line-height: 1.5; }
+
+    /* Algorithm table */
+    .algo-table {
+      width: 100%;
+      border-collapse: separate; border-spacing: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-top: 32px;
+    }
+    .algo-table th {
+      text-align: left; padding: 14px 20px;
+      font-size: 0.75rem; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--text-dim);
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+    }
+    .algo-table td {
+      padding: 12px 20px; font-size: 0.9rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .algo-table tr:last-child td { border-bottom: none; }
+    .algo-table code {
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--surface-2); padding: 2px 8px;
+      border-radius: 4px; font-size: 0.82rem;
+    }
+
+    /* Patent section */
+    .patent-banner {
+      background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
+      border: 1px solid var(--border);
+      border-radius: 16px; padding: 48px;
+      display: flex; align-items: center; gap: 40px;
+      position: relative; overflow: hidden;
+    }
+    .patent-banner::before {
+      content: '';
+      position: absolute;
+      top: -50%; right: -10%; width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.08) 0%, transparent 70%);
+    }
+    .patent-banner .icon-lg {
+      width: 72px; height: 72px; border-radius: 16px;
+      background: rgba(34, 197, 94, 0.1);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2rem; flex-shrink: 0;
+    }
+    .patent-banner h3 { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+    .patent-banner p { color: var(--text-dim); font-size: 0.9rem; line-height: 1.6; }
+    .patent-meta {
+      display: flex; gap: 24px; margin-top: 16px; flex-wrap: wrap;
+    }
+    .patent-meta span {
+      font-size: 0.8rem; color: var(--text-dim);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .patent-meta .val { color: var(--text); font-weight: 600; }
+
+    /* Code block */
+    .code-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+      margin-top: 32px;
+    }
+    .code-block .bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 20px; background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+    }
+    .code-block .bar .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .code-block .bar .filename {
+      font-size: 0.8rem; color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace; margin-left: 8px;
+    }
+    .code-block pre {
+      padding: 20px; overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem; line-height: 1.7;
+      color: var(--text-dim);
+    }
+    .code-block pre .keyword { color: var(--purple); }
+    .code-block pre .fn { color: var(--accent); }
+    .code-block pre .string { color: var(--green); }
+    .code-block pre .comment { color: #555; }
+    .code-block pre .type { color: var(--orange); }
+
+    /* Author */
+    .author-section {
+      text-align: center; padding: 80px 0 120px;
+    }
+    .author-section .avatar {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; font-weight: 800; color: #fff;
+      margin: 0 auto 20px;
+    }
+    .author-section h3 { font-size: 1.3rem; font-weight: 700; margin-bottom: 6px; }
+    .author-section p { color: var(--text-dim); font-size: 0.95rem; }
+    .author-section .author-links {
+      display: flex; gap: 16px; justify-content: center; margin-top: 20px;
+    }
+    .author-section .author-links a {
+      color: var(--text-dim); text-decoration: none; font-size: 0.85rem;
+      font-weight: 500; transition: color 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .author-section .author-links a:hover { color: var(--accent); }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 0; text-align: center;
+      color: var(--text-dim); font-size: 0.8rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .phases { grid-template-columns: 1fr; }
+      .hw-grid { grid-template-columns: 1fr; }
+      .patent-banner { flex-direction: column; text-align: center; }
+      nav .links { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="container">
+      <a href="#" class="logo">NAVIX<span>-4</span></a>
+      <div class="links">
+        <a href="#how-it-works">How It Works</a>
+        <a href="#hardware">Hardware</a>
+        <a href="#algorithms">Algorithms</a>
+        <a href="#patent">Patent</a>
+        <a href="portfolio/">About Anshul</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="container">
+      <div class="badge">
+        <span class="dot"></span>
+        Indian Patent Published — 202521042150
+      </div>
+      <h1>
+        Autonomous<br/>
+        <span class="gradient">Maze-Solving Robot</span>
+      </h1>
+      <p>
+        A 10&times;10 cm robot that explores unknown mazes, records every decision,
+        eliminates dead ends through path optimization, and replays the shortest
+        route at full speed. Built for Robofest 4.0 — National Level Competition.
+      </p>
+      <div class="ctas">
+        <a href="https://github.com/AnshulMajmudar/maze-solving-robot" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          View Source
+        </a>
+        <a href="#how-it-works" class="btn btn-secondary">Learn More &darr;</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <div class="container">
+    <div class="stats">
+      <div class="stat">
+        <div class="number" style="color: var(--accent);">3</div>
+        <div class="label">ToF Sensors</div>
+      </div>
+      <div class="stat">
+        <div class="number" style="color: var(--green);">9</div>
+        <div class="label">IMU Axes</div>
+      </div>
+      <div class="stat">
+        <div class="number" style="color: var(--orange);">10cm</div>
+        <div class="label">Footprint</div>
+      </div>
+      <div class="stat">
+        <div class="number" style="color: var(--purple);">2</div>
+        <div class="label">Algorithms</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- How It Works -->
+  <section id="how-it-works">
+    <div class="container">
+      <div class="section-label">System Design</div>
+      <h2 class="section-title">Three Phases, One Optimal Path</h2>
+      <p class="section-desc">
+        The robot operates in three distinct phases: blind exploration using priority-based
+        wall following, dead-end elimination through string rewriting, and optimized replay.
+      </p>
+      <div class="phases">
+        <div class="phase">
+          <div class="num">1</div>
+          <h3>Explore</h3>
+          <p>
+            Enters the maze with no prior knowledge. At every junction, reads left/front/right
+            distances and follows LSRB or RSLB priority. Every turn is recorded as a character
+            in a path string (L, S, R, U). Wall-following PID keeps the robot centered between walls;
+            magnetometer heading lock takes over in open corridors.
+          </p>
+        </div>
+        <div class="phase">
+          <div class="num">2</div>
+          <h3>Optimize</h3>
+          <p>
+            Dead-end U-turns are collapsed via iterative string replacement.
+            <code>LUL&rarr;S</code>, <code>SUR&rarr;L</code>, <code>SUS&rarr;U</code>, and six
+            more rules run in a loop until the path stabilizes &mdash; producing the
+            shortest dead-end-free route.
+          </p>
+        </div>
+        <div class="phase">
+          <div class="num">3</div>
+          <h3>Replay</h3>
+          <p>
+            The optimized path is executed sequentially &mdash; each character maps to a
+            turn + forward move. No exploration overhead, no hesitation. The robot traces
+            the ideal route at full motor speed with compass-locked heading.
+          </p>
+        </div>
+      </div>
+
+      <div class="optim-visual">
+        <h3>Path Optimization Example</h3>
+        <div class="optim-step">
+          <span class="before">L L U L S U R R S</span>
+          <span class="arrow">&rarr;</span>
+          <span class="after">L &nbsp;<u>S</u>&nbsp; S &nbsp;<u>L</u>&nbsp; R S</span>
+          <span class="rule">LUL&rarr;S, SUR&rarr;L</span>
+        </div>
+        <div class="optim-step">
+          <span class="before">L S S L R S</span>
+          <span class="arrow">&rarr;</span>
+          <span class="after">L S S L R S</span>
+          <span class="rule">Stable &mdash; done</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture Diagram -->
+  <section id="algorithms" style="padding-top: 0;">
+    <div class="container">
+      <div class="section-label">Architecture</div>
+      <h2 class="section-title">Sensor Fusion Pipeline</h2>
+      <p class="section-desc">
+        Three identical ToF sensors share a single I&sup2;C bus through a TCA9548A multiplexer.
+        The BMX160 provides absolute heading for compass calibration and open-corridor navigation.
+      </p>
+      <div class="code-block">
+        <div class="bar">
+          <span class="dot" style="background: var(--red);"></span>
+          <span class="dot" style="background: var(--orange);"></span>
+          <span class="dot" style="background: var(--green);"></span>
+          <span class="filename">sensor-fusion.ino</span>
+        </div>
+        <pre>
+<span class="comment">// Wall-following with sensor fusion</span>
+<span class="type">WallFollowMode</span> mode = <span class="fn">determineWallMode</span>(rightDist, leftDist);
+
+<span class="keyword">switch</span> (mode) {
+  <span class="keyword">case</span> <span class="type">BOTH_WALLS</span>:    <span class="comment">// Center between walls using differential distance</span>
+  <span class="keyword">case</span> <span class="type">RIGHT_WALL</span>:   <span class="comment">// Track right wall at target distance (130mm)</span>
+  <span class="keyword">case</span> <span class="type">LEFT_WALL</span>:    <span class="comment">// Track left wall at target distance (130mm)</span>
+  <span class="keyword">case</span> <span class="type">NO_WALLS</span>:     <span class="comment">// Fall back to BMX160 magnetometer heading lock</span>
+}
+
+<span class="comment">// Heading correction in open corridors</span>
+<span class="type">float</span> angleDiff = <span class="fn">calculateShortestPath</span>(currentAngle, targetAngle);
+<span class="type">int</span> correction = <span class="fn">map</span>(<span class="fn">abs</span>(angleDiff), <span class="string">0</span>, <span class="string">180</span>, <span class="string">0</span>, <span class="string">90</span>);</pre>
+      </div>
+
+      <table class="algo-table">
+        <thead>
+          <tr>
+            <th>Pattern</th>
+            <th>Replacement</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>LUL</code></td><td><code>S</code></td><td>Left dead-end collapses to straight</td></tr>
+          <tr><td><code>RUR</code></td><td><code>S</code></td><td>Right dead-end collapses to straight</td></tr>
+          <tr><td><code>LUR</code></td><td><code>U</code></td><td>Dead-end reversal</td></tr>
+          <tr><td><code>RUL</code></td><td><code>U</code></td><td>Dead-end reversal</td></tr>
+          <tr><td><code>SUR</code></td><td><code>L</code></td><td>Straight + dead-end + right = left</td></tr>
+          <tr><td><code>RUS</code></td><td><code>L</code></td><td>Right + dead-end + straight = left</td></tr>
+          <tr><td><code>SUL</code></td><td><code>R</code></td><td>Straight + dead-end + left = right</td></tr>
+          <tr><td><code>LUS</code></td><td><code>R</code></td><td>Left + dead-end + straight = right</td></tr>
+          <tr><td><code>SUS</code></td><td><code>U</code></td><td>Double straight dead-end</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Hardware -->
+  <section id="hardware">
+    <div class="container">
+      <div class="section-label">Hardware</div>
+      <h2 class="section-title">Custom-Built, Competition-Ready</h2>
+      <p class="section-desc">
+        Every component fits within a 10&times;10 cm stacked footprint on a custom PCB (NAVIX-4),
+        designed to meet Robofest size constraints.
+      </p>
+      <div class="hw-grid">
+        <div class="hw-card">
+          <div class="icon" style="background: var(--accent-glow); color: var(--accent);">&#9881;</div>
+          <div>
+            <h4>Teensy 4.1</h4>
+            <p>ARM Cortex-M7 at 600 MHz. Real-time sensor polling, motor PWM, and decision logic in a single-threaded loop under 50ms cycle time.</p>
+          </div>
+        </div>
+        <div class="hw-card">
+          <div class="icon" style="background: rgba(34,197,94,0.1); color: var(--green);">&#9678;</div>
+          <div>
+            <h4>3&times; VL53L1X Time-of-Flight</h4>
+            <p>Left, front, right ranging up to 4m. All share the same I&sup2;C address, resolved through a TCA9548A multiplexer at 0x70.</p>
+          </div>
+        </div>
+        <div class="hw-card">
+          <div class="icon" style="background: rgba(168,85,247,0.1); color: var(--purple);">&#9788;</div>
+          <div>
+            <h4>BMX160 9-Axis IMU</h4>
+            <p>Magnetometer provides absolute heading for 4-point compass calibration (N/W/S/E). Gyro and accelerometer available for future fusion.</p>
+          </div>
+        </div>
+        <div class="hw-card">
+          <div class="icon" style="background: rgba(245,158,11,0.1); color: var(--orange);">&#9889;</div>
+          <div>
+            <h4>Dual N20 Motors + HW-121</h4>
+            <p>Differential drive with proportional speed control. Wall-following corrections applied as differential PWM offsets for smooth centering.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Patent -->
+  <section id="patent">
+    <div class="container">
+      <div class="section-label">Intellectual Property</div>
+      <h2 class="section-title">Published Indian Patent</h2>
+      <div class="patent-banner">
+        <div class="icon-lg">&#128220;</div>
+        <div>
+          <h3>Autonomous Robot for Real-Time Pathfinding and Obstacle Avoidance</h3>
+          <p>
+            This work is protected under a published Indian patent, filed through
+            Birla Vishvakarma Mahavidyalaya Engineering College and published in
+            Patent Office Journal No. 21/2025.
+          </p>
+          <div class="patent-meta">
+            <span>Application: <span class="val">202521042150</span></span>
+            <span>Filed: <span class="val">01 May 2025</span></span>
+            <span>Published: <span class="val">23 May 2025</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Author -->
+  <div class="author-section">
+    <div class="container">
+      <div class="avatar">A</div>
+      <h3>Anshul Majmudar</h3>
+      <p>Electronics &amp; Communication Engineering, BVM Gujarat</p>
+      <div class="author-links">
+        <a href="https://linkedin.com/in/Anshul-Majmudar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/></svg>
+          LinkedIn
+        </a>
+        <a href="https://github.com/AnshulMajmudar">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub
+        </a>
+        <a href="portfolio/">
+          Portfolio &rarr;
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="container">
+      NAVIX-4 &mdash; Autonomous Maze-Solving Robot &middot; MIT License &middot; Robofest 4.0, Gujarat
+    </div>
+  </footer>
+
+</body>
+</html>

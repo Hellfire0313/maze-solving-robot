@@ -11,7 +11,7 @@
 #define BIN1 4      // Left motor forward control
 #define BIN2 3      // Left motor reverse control
 
-#define RESET_BUTTON_PIN 35  // Reset button connected to pin 37
+#define RESET_BUTTON_PIN 35
 #define CALIBRATION_BUTTON_PIN 40
 #define LSRB_BUTTON_PIN 39  // Button for LSRB algorithm
 #define RSLB_BUTTON_PIN 38  // Button for RSLB algorithm
@@ -61,10 +61,7 @@ Adafruit_VL53L1X vl53_left = Adafruit_VL53L1X();
 #define CENTER_SENSOR_CHANNEL 0
 #define RIGHT_SENSOR_CHANNEL 1
 #define LEFT_SENSOR_CHANNEL 2
-#define ADDITIONAL_SENSOR_CHANNEL 4  // New sensor on channel 4
-
-// Button pin
-#define BUTTON_PIN 37  // Push button connected to pin 35
+#define BUTTON_PIN 37
 
 // Path variables
 String path = "";  // Store path in string format (L, R, S, U)
@@ -159,7 +156,7 @@ void setup() {
   initializeSensor(vl53_left, LEFT_SENSOR_CHANNEL);
   
   Serial.println("BMX160 sensor initialized.");
-  Serial.println("Please calibrate angles using button on pin 36");
+  Serial.println("Please calibrate angles using button on pin 40");
   Serial.println("Press button when facing NORTH");
   while (!calibrationComplete) {
     handleCalibration();
@@ -573,7 +570,7 @@ void updateOrientationAndTarget(char turnDirection) {
       }
       Serial.println("U-turn");
       break;
-    case 'F':  // U-turn
+    case 'F':  // Forward (no turn)
       if (currentOrientation == NORTH) {
         currentOrientation = NORTH;
         targetAngle = northAngle;
@@ -610,7 +607,6 @@ void optimizePath() {
         path.replace("LUR", "U"); 
         path.replace("LUS", "R");
         path.replace("SUL", "R");
-        path.replace("LUS", "R");
         path.replace("SUS", "U");
         
         // Check if any replacements were made

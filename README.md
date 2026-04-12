@@ -1,163 +1,211 @@
-# Maze Solving Robot — Robofest 4.0
+<p align="center">
+  <strong>NAVIX-4</strong><br/>
+  <em>Autonomous Maze-Solving Robot</em>
+</p>
 
-An autonomous maze-solving robot built for **Robofest 4.0**, a national-level robotics competition. The robot navigates mazes using real-time sensor fusion, compass-based orientation, and two switchable traversal algorithms — with path optimization for the return run.
-
----
-
-## Robot Photos
-
-<table>
-  <tr>
-    <td align="center"><img src="media/Perspective View.jpg" width="250"/><br/>Perspective view</td>
-    <td align="center"><img src="media/Top View.jpg" width="250"/><br/>Top view</td>
-    <td align="center"><img src="media/Front View.jpg" width="250"/><br/>Front view (ToF sensor)</td>
-  </tr>
-  <tr>
-    <td align="center"><img src="media/Back View.jpg" width="250"/><br/>Back view</td>
-    <td align="center"><img src="media/Left Hand View.jpg" width="250"/><br/>Left side</td>
-    <td align="center"><img src="media/Right Hand View.jpg" width="250"/><br/>Right side</td>
-  </tr>
-  <tr>
-    <td align="center"><img src="media/Bottom View.jpg" width="250"/><br/>Bottom PCB (NAVIX-4)</td>
-    <td align="center"><img src="media/Test Maze.jpg" width="250"/><br/>Competition maze arena</td>
-  </tr>
-</table>
+<p align="center">
+  <a href="https://en.wikipedia.org/wiki/MIT_License"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"/></a>
+  <img src="https://img.shields.io/badge/platform-Teensy_4.1-orange.svg" alt="Platform"/>
+  <img src="https://img.shields.io/badge/patent-IN_202521042150-green.svg" alt="Patent"/>
+  <img src="https://img.shields.io/badge/competition-Robofest_4.0-red.svg" alt="Competition"/>
+</p>
 
 ---
 
-## Demo / Competition
+A 10×10 cm autonomous robot that **explores, learns, and optimizes** maze paths in real time. Built for [Robofest 4.0](https://robofest.co.in/) (National Level, Gujarat), it fuses three time-of-flight distance sensors with a 9-axis IMU to navigate unknown mazes, record every decision, eliminate dead ends via string-based path optimization, and replay the shortest route at full speed.
 
-Built and competed at **Robofest 4.0** (National Level Competition)
+**[Indian Patent Published](https://iprsearch.ipindia.gov.in/) — Application No. 202521042150**
 
 ---
 
 ## How It Works
 
-The robot uses three Time-of-Flight (ToF) distance sensors to detect open paths (left, front, right) and a magnetometer for absolute heading. It solves the maze on the first run, records every turn, then optimizes the path and runs it back at full speed.
+```
+┌─────────────────────────────────────────────────────────┐
+│                    SENSOR LAYER                         │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐            │
+│  │ VL53L1X  │   │ VL53L1X  │   │ VL53L1X  │            │
+│  │  LEFT    │   │  FRONT   │   │  RIGHT   │            │
+│  └────┬─────┘   └────┬─────┘   └────┬─────┘            │
+│       └───────────┬───┴───┬──────────┘                  │
+│             ┌─────┴─────┐                               │
+│             │ TCA9548A  │  I²C Multiplexer               │
+│             │  (0x70)   │                               │
+│             └─────┬─────┘                               │
+│                   │ I²C                                 │
+│  ┌────────────────┼────────────────────┐                │
+│  │          TEENSY 4.1                 │                │
+│  │   ┌─────────────────────────────┐   │                │
+│  │   │  Decision Engine            │   │                │
+│  │   │  ┌────────┐  ┌──────────┐   │   │   ┌─────────┐ │
+│  │   │  │ LSRB / │  │ Path     │   │   │   │ BMX160  │ │
+│  │   │  │ RSLB   │  │ Optimize │   │   │◄──┤ 9-axis  │ │
+│  │   │  └────────┘  └──────────┘   │   │   │ IMU     │ │
+│  │   └─────────────────────────────┘   │   └─────────┘ │
+│  └───────────┬─────────────┬───────────┘                │
+│              │             │                            │
+│         ┌────┴────┐   ┌────┴────┐                       │
+│         │  HW-121 │   │  HW-121 │  Dual H-Bridge        │
+│         │  Motor  │   │  Motor  │                       │
+│         │ Driver  │   │ Driver  │                       │
+│         └────┬────┘   └────┬────┘                       │
+│         ┌────┴────┐   ┌────┴────┐                       │
+│         │  N20 L  │   │  N20 R  │  DC Gear Motors        │
+│         └─────────┘   └─────────┘                       │
+└─────────────────────────────────────────────────────────┘
+```
 
-### Algorithms
+### Phase 1 — Explore
 
-- **LSRB** (Left-Straight-Right-Back) — Left-priority traversal
-- **RSLB** (Right-Straight-Left-Back) — Right-priority traversal
-- Switchable at runtime via physical buttons
+The robot enters the maze blind. At every junction it reads left/front/right distances and follows the selected priority rule:
 
-### Path Optimization
+| Algorithm | Priority Order | Use Case |
+|-----------|---------------|----------|
+| **LSRB** | Left → Straight → Right → Back | Left-wall-hugging traversal |
+| **RSLB** | Right → Straight → Left → Back | Right-wall-hugging traversal |
 
-After reaching the end, dead-ends (U-turns) are collapsed using string replacement rules:
+Every turn is appended to a path string (`L`, `S`, `R`, `U`). During forward segments, the robot uses **wall-following PID** (when walls are visible) or **magnetometer heading lock** (in open corridors) to stay centered.
+
+### Phase 2 — Optimize
+
+Dead-end U-turns are collapsed using iterative string replacement:
 
 ```
-LUL → S     RUR → S
-LUR → U     RUL → U
-SUR → L     RUS → L
-SUL → R     LUS → R
-SUS → U
+LUL → S    RUR → S    SUS → U
+LUR → U    RUL → U
+SUR → L    RUS → L
+SUL → R    LUS → R
 ```
 
-### Wall Following
+This reduces a path like `LLULSURRS` into the shortest equivalent without dead-end detours.
 
-During forward movement, motor speeds are dynamically adjusted based on lateral wall distances to keep the robot centered.
+### Phase 3 — Replay
+
+The optimized path is executed turn-by-turn at full speed — no exploration, no hesitation.
 
 ---
 
 ## Hardware
 
-| Component | Description |
-|---|---|
-| **Microcontroller** | Teensy 4.1 |
-| **Motors** | 2x N20 DC Gear Motors |
-| **Motor Driver** | HW-121 (dual H-bridge) |
-| **Distance Sensors** | 3x VL53L1X Time-of-Flight (Left, Front, Right) |
-| **IMU / Compass** | BMX160 (magnetometer + gyro + accelerometer) |
-| **Multiplexer** | TCA9548A I2C Mux |
+| Component | Part | Role |
+|-----------|------|------|
+| **MCU** | Teensy 4.1 (ARM Cortex-M7, 600 MHz) | Core controller |
+| **Distance** | 3× VL53L1X Time-of-Flight | Left / Front / Right ranging |
+| **IMU** | BMX160 (mag + gyro + accel) | Absolute heading & compass calibration |
+| **Mux** | TCA9548A I²C Multiplexer | Addresses 3 identical-address ToF sensors |
+| **Drive** | 2× N20 DC gear motors + HW-121 H-bridge | Differential drive |
+| **PCB** | Custom NAVIX-4 (stacked design) | Fits within 10×10 cm footprint |
+
+### Pin Map
+
+| Pin | Function | Pin | Function |
+|-----|----------|-----|----------|
+| 2 | Left motor PWM | 5 | Right motor PWM |
+| 3, 4 | Left motor DIR | 6, 7 | Right motor DIR |
+| 35 | Reset | 36 | Optimize path |
+| 37 | Start optimized run | 38 | RSLB select |
+| 39 | LSRB select | 40 | Calibration |
 
 ---
 
-## PCB Schematics
+## Robot
+
+<table>
+  <tr>
+    <td align="center"><img src="media/Perspective View.jpg" width="250"/><br/><sub>Perspective</sub></td>
+    <td align="center"><img src="media/Top View.jpg" width="250"/><br/><sub>Top</sub></td>
+    <td align="center"><img src="media/Front View.jpg" width="250"/><br/><sub>Front (ToF sensor array)</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="media/Back View.jpg" width="250"/><br/><sub>Back</sub></td>
+    <td align="center"><img src="media/Left Hand View.jpg" width="250"/><br/><sub>Left</sub></td>
+    <td align="center"><img src="media/Right Hand View.jpg" width="250"/><br/><sub>Right</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="media/Bottom View.jpg" width="250"/><br/><sub>Bottom — NAVIX-4 PCB</sub></td>
+    <td align="center"><img src="media/Test Maze.jpg" width="250"/><br/><sub>Competition arena</sub></td>
+  </tr>
+</table>
+
+### PCB Schematics
 
 | Top Layer | Bottom Layer |
-|---|---|
-| ![Top Layer](schematics/Upper%20Layer.jpg) | ![Bottom Layer](schematics/Bottom%20Layer.jpg) |
+|-----------|-------------|
+| ![Top](schematics/Upper%20Layer.jpg) | ![Bottom](schematics/Bottom%20Layer.jpg) |
 
 ---
 
 ## Patent
 
-This project is protected under a published Indian patent.
-
-| Field | Details |
+| | |
 |---|---|
-| **Application No.** | 202521042150 |
+| **Application** | 202521042150 |
 | **Title** | Autonomous Robot for Real-Time Pathfinding and Obstacle Avoidance |
-| **Filed** | 01 May 2025 |
-| **Published** | 23 May 2025 |
+| **Filed / Published** | 01 May 2025 / 23 May 2025 |
 | **Institution** | Birla Vishvakarma Mahavidyalaya Engineering College, Gujarat |
 | **Journal** | Patent Office Journal No. 21/2025 |
 
-The full patent publication is available in the [Patent/](./Patent/) folder of this repository.
+Full publication available in [`Patent/`](./Patent/).
 
 ---
 
-## Software and Libraries
+## Quick Start
 
-- `DFRobot_BMX160` — magnetometer/IMU readings
-- `Adafruit_VL53L1X` — ToF sensor ranging
-- `Wire.h` — I2C communication
-- Arduino/Teensy framework (C++)
+```bash
+# 1. Clone
+git clone https://github.com/<your-username>/maze-solving-robot.git
 
----
+# 2. Open in Arduino IDE
+#    File → Open → src/Project-final.ino
 
-## Features
+# 3. Install dependencies (Library Manager)
+#    - DFRobot BMX160
+#    - Adafruit VL53L1X
 
-- Real-time wall-following with dynamic motor correction
-- Absolute compass heading using BMX160 magnetometer
-- Compass calibration via physical button (North to West to South to East)
-- Switchable LSRB / RSLB maze algorithms at runtime
-- Path recording and string-based optimization
-- Optimized path replay after maze is solved
-- System reset button to restart exploration
+# 4. Select board: Teensy 4.1  →  Upload
+```
 
----
-
-## Getting Started
-
-### Prerequisites
-
-- Arduino IDE or PlatformIO
-- Teensyduino add-on for Teensy 4.1 support
-- Install libraries via Library Manager: DFRobot BMX160 and Adafruit VL53L1X
-
-### Upload
-
-1. Open `src/Project-final.ino` in Arduino IDE
-2. Select Board: Teensy 4.1
-3. Connect via USB and click Upload
+**Calibration:** Power on → press calibration button facing North → rotate to West, South, East, pressing at each cardinal point.
 
 ---
 
-## Pin Reference
+## Project Structure
 
-| Pin | Function |
-|---|---|
-| 5 | Right motor PWM |
-| 6 / 7 | Right motor direction |
-| 2 | Left motor PWM |
-| 3 / 4 | Left motor direction |
-| 35 | Reset button |
-| 36 | Optimize path button |
-| 37 | Start optimized path button |
-| 38 | RSLB algorithm select |
-| 39 | LSRB algorithm select |
-| 40 | Calibration button |
+```
+maze-solving-robot/
+├── src/
+│   └── Project-final.ino    # Complete firmware (sensor fusion, algorithms, motor control)
+├── media/                    # Robot photos
+├── schematics/               # PCB layer images
+├── Patent/                   # Published patent document
+├── docs/                     # GitHub Pages site
+│   ├── index.html            # Project landing page
+│   └── portfolio/
+│       └── index.html        # Anshul's portfolio
+└── README.md
+```
+
+---
+
+## Dependencies
+
+| Library | Purpose |
+|---------|---------|
+| [`DFRobot_BMX160`](https://github.com/DFRobot/DFRobot_BMX160) | 9-axis IMU (magnetometer for heading) |
+| [`Adafruit_VL53L1X`](https://github.com/adafruit/Adafruit_VL53L1X) | Time-of-flight distance sensing |
+| `Wire.h` | I²C bus communication |
+| Arduino / [Teensyduino](https://www.pjrc.com/teensy/teensyduino.html) | Framework + board support |
 
 ---
 
 ## Author
 
-**Anshul Majmudar**
-Competed at Robofest 4.0 — National Robotics Competition, Gujarat
+**[Anshul Majmudar](https://linkedin.com/in/Anshul-Majmudar)**
+Electronics & Communication Engineering, BVM Gujarat
+Competed at Robofest 4.0 — National Robotics Competition
 
 ---
 
 ## License
 
-This project is open source under the [MIT License](LICENSE).
+[MIT](LICENSE)
