@@ -179,9 +179,8 @@ maze-solving-robot/
 ├── schematics/               # PCB layer images
 ├── Patent/                   # Published patent document
 ├── docs/                     # GitHub Pages site
-│   ├── index.html            # Project landing page
-│   └── portfolio/
-│       └── index.html        # Anshul's portfolio
+│   └── index.html            # Project landing page
+│   
 └── README.md
 ```
 
